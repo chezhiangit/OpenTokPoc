@@ -7,7 +7,7 @@
  */
 
 import React from 'react';
-import {View, Text, PermissionsAndroid, Button} from 'react-native';
+import {View, Text, PermissionsAndroid, Button, Platform} from 'react-native';
 
 // import {
 //   Header,
@@ -18,24 +18,47 @@ import {View, Text, PermissionsAndroid, Button} from 'react-native';
 // } from 'react-native/Libraries/NewAppScreen';
 
 import {OTSession, OTPublisher, OTSubscriber, OT} from 'opentok-react-native';
+import RNCallKeep from 'react-native-callkeep';
+import DeviceInfo from 'react-native-device-info';
+import BackgroundTimer from 'react-native-background-timer';
 
 import uuid from 'uuid';
 
 const SERVER_BASE_URL = 'https://xyzopentokpoc.herokuapp.com';
 
-const options = {
+// const options = {
+//   ios: {
+//     appName: 'My app name',
+//   },
+//   android: {
+//     alertTitle: 'Permissions required',
+//     alertDescription: 'This application needs to access your phone accounts',
+//     cancelButton: 'Cancel',
+//     okButton: 'ok',
+//     imageName: 'phone_account_icon',
+//     additionalPermissions: [PermissionsAndroid.PERMISSIONS.example],
+//   },
+// };
+
+RNCallKeep.setup({
   ios: {
-    appName: 'My app name',
+    appName: 'CallKeepDemo',
   },
   android: {
     alertTitle: 'Permissions required',
     alertDescription: 'This application needs to access your phone accounts',
     cancelButton: 'Cancel',
     okButton: 'ok',
-    imageName: 'phone_account_icon',
-    additionalPermissions: [PermissionsAndroid.PERMISSIONS.example],
   },
-};
+});
+
+const getNewUuid = () => uuid.v4().toLowerCase();
+
+const format = pUUid => pUUid.split('-')[0];
+
+const getRandomNumber = () => String(Math.floor(Math.random() * 100000));
+
+const isIOS = Platform.OS === 'ios';
 
 class App extends React.Component {
   constructor(props) {
@@ -53,6 +76,7 @@ class App extends React.Component {
       text: '',
       messages: [],
     };
+    RNCallKeep.setAvailable(true);
 
     this.connectedClientId = [];
     OT.enableLogs(true);
@@ -73,7 +97,7 @@ class App extends React.Component {
       signal: event => {
         // this.playSound();
         console.log('Signal Received', event);
-        // this.showIncomingCall();
+        this.displayIncomingCallNow();
       },
       connectionCreated: event => {
         console.log('another client connected connection crated', event);
@@ -123,7 +147,194 @@ class App extends React.Component {
         this.setState({apiKey, sessionId, token});
       })
       .catch(() => {});
+
+    RNCallKeep.addEventListener('answerCall', this.answerCall);
+    RNCallKeep.addEventListener(
+      'didPerformDTMFAction',
+      this.didPerformDTMFAction,
+    );
+    RNCallKeep.addEventListener(
+      'didReceiveStartCallAction',
+      this.didReceiveStartCallAction,
+    );
+    RNCallKeep.addEventListener(
+      'didPerformSetMutedCallAction',
+      this.didPerformSetMutedCallAction,
+    );
+    RNCallKeep.addEventListener(
+      'didToggleHoldCallAction',
+      this.didToggleHoldCallAction,
+    );
+    RNCallKeep.addEventListener('endCall', this.endCall);
   }
+
+  componentWillUnmount() {
+    RNCallKeep.removeEventListener('answerCall', this.answerCall);
+    RNCallKeep.removeEventListener(
+      'didPerformDTMFAction',
+      this.didPerformDTMFAction,
+    );
+    RNCallKeep.removeEventListener(
+      'didReceiveStartCallAction',
+      this.didReceiveStartCallAction,
+    );
+    RNCallKeep.removeEventListener(
+      'didPerformSetMutedCallAction',
+      this.didPerformSetMutedCallAction,
+    );
+    RNCallKeep.removeEventListener(
+      'didToggleHoldCallAction',
+      this.didToggleHoldCallAction,
+    );
+    RNCallKeep.removeEventListener('endCall', this.endCall);
+  }
+
+  log = text => {
+    console.info(text);
+    const logText = this.state.logText;
+    this.setState({logText: logText + '\n' + text});
+  };
+
+  addCall = (callUUID, number) => {
+    this.setState({...this.state.heldCalls, [callUUID]: false});
+    this.setState({...this.state.calls, [callUUID]: number});
+  };
+
+  removeCall = callUUID => {
+    const {[callUUID]: _, ...updated} = this.state.calls;
+    const {[callUUID]: __, ...updatedHeldCalls} = heldCalls;
+
+    this.setState(updated);
+    this.setState(updatedHeldCalls);
+  };
+
+  setCallHeld = (callUUID, held) => {
+    this.setState({...this.state.heldCalls, [callUUID]: held});
+  };
+
+  setCallMuted = (callUUID, muted) => {
+    this.setState({...this.state.mutedCalls, [callUUID]: muted});
+  };
+
+  displayIncomingCall = number => {
+    const callUUID = getNewUuid();
+    this.addCall(callUUID, number);
+
+    this.log(`[displayIncomingCall] ${format(callUUID)}, number: ${number}`);
+
+    RNCallKeep.displayIncomingCall(callUUID, number, number, 'number', false);
+  };
+
+  displayIncomingCallNow = () => {
+    this.displayIncomingCall(getRandomNumber());
+  };
+
+  displayIncomingCallDelayed = () => {
+    BackgroundTimer.setTimeout(() => {
+      this.displayIncomingCall(getRandomNumber());
+    }, 3000);
+  };
+
+  answerCall = ({callUUID}) => {
+    const number = this.state.calls[callUUID];
+    this.log(`[answerCall] ${format(callUUID)}, number: ${number}`);
+
+    RNCallKeep.startCall(callUUID, number, number);
+
+    BackgroundTimer.setTimeout(() => {
+      this.log(`[setCurrentCallActive] ${format(callUUID)}, number: ${number}`);
+      RNCallKeep.setCurrentCallActive(callUUID);
+    }, 1000);
+  };
+
+  didPerformDTMFAction = ({callUUID, digits}) => {
+    const number = this.state.calls[callUUID];
+    this.log(
+      `[didPerformDTMFAction] ${format(
+        callUUID,
+      )}, number: ${number} (${digits})`,
+    );
+  };
+
+  didReceiveStartCallAction = ({handle}) => {
+    if (!handle) {
+      // @TODO: sometime we receive `didReceiveStartCallAction` with handle` undefined`
+      return;
+    }
+    const callUUID = getNewUuid();
+    this.addCall(callUUID, handle);
+
+    this.log(`[didReceiveStartCallAction] ${callUUID}, number: ${handle}`);
+
+    RNCallKeep.startCall(callUUID, handle, handle);
+
+    BackgroundTimer.setTimeout(() => {
+      this.log(`[setCurrentCallActive] ${format(callUUID)}, number: ${handle}`);
+      RNCallKeep.setCurrentCallActive(callUUID);
+    }, 1000);
+  };
+
+  didPerformSetMutedCallAction = ({muted, callUUID}) => {
+    const number = this.state.calls[callUUID];
+    this.log(
+      `[didPerformSetMutedCallAction] ${format(
+        callUUID,
+      )}, number: ${number} (${muted})`,
+    );
+
+    this.setCallMuted(callUUID, muted);
+  };
+
+  didToggleHoldCallAction = ({hold, callUUID}) => {
+    const number = this.state.calls[callUUID];
+    this.log(
+      `[didToggleHoldCallAction] ${format(
+        callUUID,
+      )}, number: ${number} (${hold})`,
+    );
+
+    this.setCallHeld(callUUID, hold);
+  };
+
+  endCall = ({callUUID}) => {
+    const handle = this.state.calls[callUUID];
+    this.log(`[endCall] ${format(callUUID)}, number: ${handle}`);
+
+    this.removeCall(callUUID);
+  };
+
+  hangup = callUUID => {
+    RNCallKeep.endCall(callUUID);
+    this.removeCall(callUUID);
+  };
+
+  setOnHold = (callUUID, held) => {
+    const handle = this.state.calls[callUUID];
+    RNCallKeep.setOnHold(callUUID, held);
+    this.log(`[setOnHold: ${held}] ${format(callUUID)}, number: ${handle}`);
+
+    this.setCallHeld(callUUID, held);
+  };
+
+  setOnMute = (callUUID, muted) => {
+    const handle = this.state.calls[callUUID];
+    RNCallKeep.setMutedCall(callUUID, muted);
+    this.log(`[setMutedCall: ${muted}] ${format(callUUID)}, number: ${handle}`);
+
+    this.setCallMuted(callUUID, muted);
+  };
+
+  updateDisplay = callUUID => {
+    const number = this.state.calls[callUUID];
+    // Workaround because Android doesn't display well displayName, se we have to switch ...
+    if (isIOS) {
+      RNCallKeep.updateDisplay(callUUID, 'New Name', number);
+    } else {
+      RNCallKeep.updateDisplay(callUUID, number, 'New Name');
+    }
+
+    this.log(`[updateDisplay: ${number}] ${format(callUUID)}`);
+  };
 
   sendSignal = () => {
     // this.showIncomingCall();
@@ -152,9 +363,9 @@ class App extends React.Component {
         style={{
           flex: 1,
           // flexDirection: 'row',
-          // alignItems: 'center',
-          // justifyContent: 'center',
-          // paddingTop: 100,
+          alignItems: 'center',
+          justifyContent: 'center',
+          paddingTop: 50,
         }}>
         {this.state.apiKey && (
           <OTSession
@@ -217,6 +428,16 @@ class App extends React.Component {
             />*/}
           </OTSession>
         )}
+        {/* {isIOS && DeviceInfo.isEmulator() && (
+          <Text
+            style={{
+              backgroundColor: '#fff',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+            CallKeep doesn't work on iOS emulator
+          </Text>
+        )} */}
       </View>
     );
   }

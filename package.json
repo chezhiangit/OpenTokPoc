@@ -12,7 +12,10 @@
   "dependencies": {
     "opentok-react-native": "^0.13.0",
     "react": "16.11.0",
-    "react-native": "0.62.2"
+    "react-native": "0.62.2",
+    "react-native-background-timer": "^2.2.0",
+    "react-native-callkeep": "^3.0.14",
+    "react-native-device-info": "^5.6.1"
   },
   "devDependencies": {
     "@babel/core": "7.10.3",
