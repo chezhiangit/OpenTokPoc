@@ -82,6 +82,7 @@ class App extends React.Component {
     // });
 
     // RNCallKeep.setAvailable(true);
+    // Added by Martin
 
     this.connectedClientId = [];
     OT.enableLogs(true);
