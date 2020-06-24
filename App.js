@@ -19,10 +19,11 @@ import {View, Text, PermissionsAndroid, Button, Platform} from 'react-native';
 
 import {OTSession, OTPublisher, OTSubscriber, OT} from 'opentok-react-native';
 import RNCallKeep from 'react-native-callkeep';
-import DeviceInfo from 'react-native-device-info';
+// import DeviceInfo from 'react-native-device-info';
 import BackgroundTimer from 'react-native-background-timer';
 
 import uuid from 'uuid';
+import PrimartButton from './PrimaryButton';
 
 const SERVER_BASE_URL = 'https://xyzopentokpoc.herokuapp.com';
 
@@ -40,18 +41,6 @@ const SERVER_BASE_URL = 'https://xyzopentokpoc.herokuapp.com';
 //   },
 // };
 
-RNCallKeep.setup({
-  ios: {
-    appName: 'CallKeepDemo',
-  },
-  android: {
-    alertTitle: 'Permissions required',
-    alertDescription: 'This application needs to access your phone accounts',
-    cancelButton: 'Cancel',
-    okButton: 'ok',
-  },
-});
-
 const getNewUuid = () => uuid.v4().toLowerCase();
 
 const format = pUUid => pUUid.split('-')[0];
@@ -65,6 +54,9 @@ class App extends React.Component {
     super(props);
 
     this.state = {
+      isSessionConnected: false,
+      callUser: false,
+      receiveCall: false,
       apiKey: null,
       sessionId: null,
       token: null,
@@ -76,7 +68,20 @@ class App extends React.Component {
       text: '',
       messages: [],
     };
-    RNCallKeep.setAvailable(true);
+    this.initialize();
+    // RNCallKeep.setup({
+    //   ios: {
+    //     appName: 'CallKeepDemo',
+    //   },
+    //   android: {
+    //     alertTitle: 'Permissions required',
+    //     alertDescription: 'This application needs to access your phone accounts',
+    //     cancelButton: 'Cancel',
+    //     okButton: 'ok',
+    //   },
+    // });
+
+    // RNCallKeep.setAvailable(true);
 
     this.connectedClientId = [];
     OT.enableLogs(true);
@@ -93,15 +98,18 @@ class App extends React.Component {
         this.setState({
           isConnected: true,
         });
+        this.connectedClientId.push(event.connectionId);
+
+        // this.initialize();
       },
       signal: event => {
         // this.playSound();
         console.log('Signal Received', event);
-        this.displayIncomingCallNow();
+        // this.displayIncomingCallNow();
       },
       connectionCreated: event => {
         console.log('another client connected connection crated', event);
-        this.connectedClientId.push(event.connectionId);
+        this.connectedClientId.unshift(event.connectionId);
         console.log(
           'another client connected connection crated - this.connectedClientId',
           this.connectedClientId,
@@ -135,59 +143,78 @@ class App extends React.Component {
   }
 
   componentDidMount() {
-    fetch(SERVER_BASE_URL + '/session')
-      .then(function(res) {
-        return res.json();
-      })
-      .then(res => {
-        console.log('res .....', res);
-        const apiKey = res.apiKey;
-        const sessionId = res.sessionId;
-        const token = res.token;
-        this.setState({apiKey, sessionId, token});
-      })
-      .catch(() => {});
-
-    RNCallKeep.addEventListener('answerCall', this.answerCall);
-    RNCallKeep.addEventListener(
-      'didPerformDTMFAction',
-      this.didPerformDTMFAction,
-    );
-    RNCallKeep.addEventListener(
-      'didReceiveStartCallAction',
-      this.didReceiveStartCallAction,
-    );
-    RNCallKeep.addEventListener(
-      'didPerformSetMutedCallAction',
-      this.didPerformSetMutedCallAction,
-    );
-    RNCallKeep.addEventListener(
-      'didToggleHoldCallAction',
-      this.didToggleHoldCallAction,
-    );
-    RNCallKeep.addEventListener('endCall', this.endCall);
+    // fetch(SERVER_BASE_URL + '/session')
+    //   .then(function(res) {
+    //     return res.json();
+    //   })
+    //   .then(res => {
+    //     console.log('res .....', res);
+    //     const apiKey = res.apiKey;
+    //     const sessionId = res.sessionId;
+    //     const token = res.token;
+    //     this.setState({apiKey, sessionId, token});
+    //   })
+    //   .catch(() => {});
   }
 
   componentWillUnmount() {
-    RNCallKeep.removeEventListener('answerCall', this.answerCall);
-    RNCallKeep.removeEventListener(
-      'didPerformDTMFAction',
-      this.didPerformDTMFAction,
-    );
-    RNCallKeep.removeEventListener(
-      'didReceiveStartCallAction',
-      this.didReceiveStartCallAction,
-    );
-    RNCallKeep.removeEventListener(
-      'didPerformSetMutedCallAction',
-      this.didPerformSetMutedCallAction,
-    );
-    RNCallKeep.removeEventListener(
-      'didToggleHoldCallAction',
-      this.didToggleHoldCallAction,
-    );
-    RNCallKeep.removeEventListener('endCall', this.endCall);
+    // RNCallKeep.removeEventListener('answerCall', this.answerCall);
+    // RNCallKeep.removeEventListener(
+    //   'didPerformDTMFAction',
+    //   this.didPerformDTMFAction,
+    // );
+    // RNCallKeep.removeEventListener(
+    //   'didReceiveStartCallAction',
+    //   this.didReceiveStartCallAction,
+    // );
+    // RNCallKeep.removeEventListener(
+    //   'didPerformSetMutedCallAction',
+    //   this.didPerformSetMutedCallAction,
+    // );
+    // RNCallKeep.removeEventListener(
+    //   'didToggleHoldCallAction',
+    //   this.didToggleHoldCallAction,
+    // );
+    // RNCallKeep.removeEventListener('endCall', this.endCall);
   }
+
+  initialize = async () => {
+    await RNCallKeep.setup(
+      {
+        ios: {
+          appName: 'OpenTokPoc',
+        },
+        android: {
+          alertTitle: 'Permissions required',
+          alertDescription:
+            'This application needs to access your phone accounts',
+          cancelButton: 'Cancel',
+          okButton: 'ok',
+        },
+      },
+      () => {
+        RNCallKeep.setAvailable(true);
+        RNCallKeep.addEventListener('answerCall', this.answerCall);
+        RNCallKeep.addEventListener(
+          'didPerformDTMFAction',
+          this.didPerformDTMFAction,
+        );
+        RNCallKeep.addEventListener(
+          'didReceiveStartCallAction',
+          this.didReceiveStartCallAction,
+        );
+        RNCallKeep.addEventListener(
+          'didPerformSetMutedCallAction',
+          this.didPerformSetMutedCallAction,
+        );
+        RNCallKeep.addEventListener(
+          'didToggleHoldCallAction',
+          this.didToggleHoldCallAction,
+        );
+        RNCallKeep.addEventListener('endCall', this.endCall);
+      },
+    );
+  };
 
   log = text => {
     console.info(text);
@@ -202,7 +229,7 @@ class App extends React.Component {
 
   removeCall = callUUID => {
     const {[callUUID]: _, ...updated} = this.state.calls;
-    const {[callUUID]: __, ...updatedHeldCalls} = heldCalls;
+    const {[callUUID]: __, ...updatedHeldCalls} = this.state.heldCalls;
 
     this.setState(updated);
     this.setState(updatedHeldCalls);
@@ -236,6 +263,7 @@ class App extends React.Component {
   };
 
   answerCall = ({callUUID}) => {
+    console.log('Call answered ....');
     const number = this.state.calls[callUUID];
     this.log(`[answerCall] ${format(callUUID)}, number: ${number}`);
 
@@ -257,10 +285,12 @@ class App extends React.Component {
   };
 
   didReceiveStartCallAction = ({handle}) => {
+    console.log('calling ......');
     if (!handle) {
       // @TODO: sometime we receive `didReceiveStartCallAction` with handle` undefined`
       return;
     }
+    console.log('calling ......');
     const callUUID = getNewUuid();
     this.addCall(callUUID, handle);
 
@@ -297,6 +327,7 @@ class App extends React.Component {
   };
 
   endCall = ({callUUID}) => {
+    console.log('call ended......');
     const handle = this.state.calls[callUUID];
     this.log(`[endCall] ${format(callUUID)}, number: ${handle}`);
 
@@ -337,24 +368,92 @@ class App extends React.Component {
   };
 
   sendSignal = () => {
-    // this.showIncomingCall();
+    console.log('send signal ...');
     const {isConnected} = this.state;
     if (isConnected) {
       this.otSessionRef.current.signal(
         {
           data: 'Chezhian',
           to: this.connectedClientId[0], // optional - connectionId of connected client you want to send the signal to
-          type: 'Voice', // optional
+          type: 'Calling', // optional
+        },
+        error => {
+          console.log('error in send signal', error);
+        },
+      );
+      console.log('send signal and show incoming call UI ...');
+    }
+  };
+
+  sendCallSignal = () => {
+    console.log('send signal ...', this.connectedClientId[0]);
+    const {isConnected} = this.state;
+    if (isConnected) {
+      if (this.connectedClientId.length > 0) {
+        this.otSessionRef.current.signal(
+          {
+            data: 'Chezhian',
+            to: this.connectedClientId[0], // optional - connectionId of connected client you want to send the signal to
+            type: 'Calling', // optional - callout
+          },
+          error => {
+            console.log('signal sent', error);
+          },
+        );
+        console.log('send signal and show incoming call UI ...');
+        RNCallKeep.startCall(getRandomNumber(), '9585058087', 'Chezhian');
+      } else {
+        alert('Unable to send signal. No user connected');
+      }
+    } else {
+      alert('Unable to send signal. Session not connected');
+    }
+  };
+
+  sendReceiveSignal = () => {
+    console.log('send signal ...');
+    const {isConnected} = this.state;
+    if (isConnected) {
+      this.otSessionRef.current.signal(
+        {
+          data: 'Chezhian',
+          to: this.connectedClientId[0], // optional - connectionId of connected client you want to send the signal to
+          type: 'Receiving', // optional
         },
         error => {
           console.log('signal sent', error);
         },
       );
+      console.log('send signal and show incoming call UI ...');
     }
   };
 
   // _keyExtractor = (item, index) => index;
   // _renderItem = ({item}) => <Text style={styles.item}>{item.data}</Text>;
+
+  onConnect = () => {
+    console.log('connect to session');
+    fetch(SERVER_BASE_URL + '/session')
+      .then(function(res) {
+        return res.json();
+      })
+      .then(res => {
+        console.log('res .....', res);
+        const apiKey = res.apiKey;
+        const sessionId = res.sessionId;
+        const token = res.token;
+        this.setState({apiKey, sessionId, token, isSessionConnected: true});
+        alert('Connected successfully.');
+      })
+      .catch(() => {
+        alert('Connection failsed. Pls try again.');
+      });
+  };
+
+  onCall = () => {
+    this.sendCallSignal();
+    console.log('Calling....');
+  };
 
   render() {
     console.log('this.state ....', this.state);
@@ -362,12 +461,12 @@ class App extends React.Component {
       <View
         style={{
           flex: 1,
-          // flexDirection: 'row',
+          // flexDirection: 'col',
           alignItems: 'center',
           justifyContent: 'center',
           paddingTop: 50,
         }}>
-        {this.state.apiKey && (
+        {this.state.isSessionConnected && (
           <OTSession
             apiKey={this.state.apiKey}
             sessionId={this.state.sessionId}
@@ -382,52 +481,40 @@ class App extends React.Component {
             publishVideo={false}
             videTrack={false}
             audioTrack={true}>
-            <Text>pulisher</Text>
-            <OTPublisher
-              style={{
-                width: 300,
-                height: 300,
-                borderWidth: 1,
-                borderColor: 'blue',
-              }}
-              properties={this.publisherProperties}
-            />
-            <Text>Subscrbe</Text>
-            <OTSubscriber
-              style={{
-                width: 300,
-                height: 300,
-                borderWidth: 1,
-                borderColor: 'red',
-              }}
-              properties={this.subscriberProperties}
-            />
-            <Button
-              onPress={() => {
-                this.sendSignal();
-              }}
-              title="Send Signal"
-            />
-            {/* <TextInput
-              style={{height: 40, borderColor: 'gray', borderWidth: 1}}
-              onChangeText={text => {
-                this.setState({text});
-              }}
-              value={this.state.text}
-            />
-            <Button
-              onPress={() => {
-                this.sendSignal();
-              }}
-              title="Send Signal"
-            />
-            <FlatList
-              data={this.state.messages}
-              renderItem={this._renderItem}
-              keyExtractor={this._keyExtractor}
-            />*/}
+            {this.state.callUser && (
+              <OTPublisher
+                style={{
+                  width: 300,
+                  height: 300,
+                  borderWidth: 1,
+                  borderColor: 'blue',
+                }}
+                properties={this.publisherProperties}
+              />
+            )}
+            {this.state.receiveCall && (
+              <OTSubscriber
+                style={{
+                  width: 300,
+                  height: 300,
+                  borderWidth: 1,
+                  borderColor: 'red',
+                }}
+                properties={this.subscriberProperties}
+              />
+            )}
           </OTSession>
         )}
+        <PrimartButton
+          onSubmit={this.onConnect}
+          btnName={'Connect'}
+          btnStyle={{width: 200, margin: 20}}
+        />
+        <PrimartButton
+          onSubmit={this.onCall}
+          btnName={'Call'}
+          btnStyle={{width: 200, margin: 20}}
+        />
         {/* {isIOS && DeviceInfo.isEmulator() && (
           <Text
             style={{
