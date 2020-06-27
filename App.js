@@ -67,6 +67,9 @@ class App extends React.Component {
       },
       text: '',
       messages: [],
+      calls: {},
+      heldCalls: {},
+      mutedCalls: {},
     };
     this.initialize();
     // RNCallKeep.setup({
@@ -98,7 +101,7 @@ class App extends React.Component {
         this.setState({
           isConnected: true,
         });
-        this.connectedClientId.push(event.connectionId);
+        // this.connectedClientId.push(event.connectionId);
 
         // this.initialize();
       },
@@ -106,14 +109,17 @@ class App extends React.Component {
         // this.playSound();
         console.log('Signal Received', event);
         // this.displayIncomingCallNow();
+        this.handleSignal(event);
       },
       connectionCreated: event => {
+
         console.log('another client connected connection crated', event);
-        this.connectedClientId.unshift(event.connectionId);
+        // this.connectedClientId.push(event.connectionId);
         console.log(
           'another client connected connection crated - this.connectedClientId',
           this.connectedClientId,
         );
+        alert('Client connected');
       },
       connectionDestroyed: event => {
         console.log('another client disconnected connection destroyed', event);
@@ -142,6 +148,16 @@ class App extends React.Component {
     };
   }
 
+  handleSignal = event => {
+    console.log('Handle received signals.....', event);
+    if (event.type === 'Calling') {
+      // this.sendReceiveSignal(event.connectionId);
+      this.displayIncomingCallNow();
+    } else if (event.type === 'CallAccepted') {
+      this.didReceiveStartCallAction({handle: event.data});
+    }
+  };
+
   componentDidMount() {
     // fetch(SERVER_BASE_URL + '/session')
     //   .then(function(res) {
@@ -155,29 +171,27 @@ class App extends React.Component {
     //     this.setState({apiKey, sessionId, token});
     //   })
     //   .catch(() => {});
-  }
 
-  componentWillUnmount() {
-    // RNCallKeep.removeEventListener('answerCall', this.answerCall);
-    // RNCallKeep.removeEventListener(
-    //   'didPerformDTMFAction',
-    //   this.didPerformDTMFAction,
-    // );
-    // RNCallKeep.removeEventListener(
-    //   'didReceiveStartCallAction',
-    //   this.didReceiveStartCallAction,
-    // );
-    // RNCallKeep.removeEventListener(
-    //   'didPerformSetMutedCallAction',
-    //   this.didPerformSetMutedCallAction,
-    // );
-    // RNCallKeep.removeEventListener(
-    //   'didToggleHoldCallAction',
-    //   this.didToggleHoldCallAction,
-    // );
-    // RNCallKeep.removeEventListener('endCall', this.endCall);
+    RNCallKeep.setAvailable(true);
+    RNCallKeep.addEventListener('answerCall', this.answerCall);
+    RNCallKeep.addEventListener(
+      'didPerformDTMFAction',
+      this.didPerformDTMFAction,
+    );
+    RNCallKeep.addEventListener(
+      'didReceiveStartCallAction',
+      this.didReceiveStartCallAction,
+    );
+    RNCallKeep.addEventListener(
+      'didPerformSetMutedCallAction',
+      this.didPerformSetMutedCallAction,
+    );
+    RNCallKeep.addEventListener(
+      'didToggleHoldCallAction',
+      this.didToggleHoldCallAction,
+    );
+    RNCallKeep.addEventListener('endCall', this.endCall);
   }
-
   initialize = async () => {
     await RNCallKeep.setup(
       {
@@ -192,27 +206,7 @@ class App extends React.Component {
           okButton: 'ok',
         },
       },
-      () => {
-        RNCallKeep.setAvailable(true);
-        RNCallKeep.addEventListener('answerCall', this.answerCall);
-        RNCallKeep.addEventListener(
-          'didPerformDTMFAction',
-          this.didPerformDTMFAction,
-        );
-        RNCallKeep.addEventListener(
-          'didReceiveStartCallAction',
-          this.didReceiveStartCallAction,
-        );
-        RNCallKeep.addEventListener(
-          'didPerformSetMutedCallAction',
-          this.didPerformSetMutedCallAction,
-        );
-        RNCallKeep.addEventListener(
-          'didToggleHoldCallAction',
-          this.didToggleHoldCallAction,
-        );
-        RNCallKeep.addEventListener('endCall', this.endCall);
-      },
+      () => {},
     );
   };
 
@@ -223,27 +217,40 @@ class App extends React.Component {
   };
 
   addCall = (callUUID, number) => {
-    this.setState({...this.state.heldCalls, [callUUID]: false});
-    this.setState({...this.state.calls, [callUUID]: number});
+    const calls = {...this.state.calls};
+    const heldCalls = this.state.heldCalls;
+    heldCalls[callUUID] = false;
+    this.setState({heldCalls});
+    calls[callUUID] = number;
+    this.setState({calls});
+
+    console.log('addedcalls ...', calls);
   };
 
   removeCall = callUUID => {
     const {[callUUID]: _, ...updated} = this.state.calls;
     const {[callUUID]: __, ...updatedHeldCalls} = this.state.heldCalls;
-
     this.setState(updated);
     this.setState(updatedHeldCalls);
+    RNCallKeep.endAllCalls();
   };
 
   setCallHeld = (callUUID, held) => {
-    this.setState({...this.state.heldCalls, [callUUID]: held});
+    const heldCalls = this.state.heldCalls;
+    heldCalls[callUUID] = held;
+    this.setState({heldCalls});
+    // this.setState({...this.state.heldCalls, [callUUID]: held});
   };
 
   setCallMuted = (callUUID, muted) => {
-    this.setState({...this.state.mutedCalls, [callUUID]: muted});
+    const mutedCalls = this.state.mutedCalls;
+    mutedCalls[callUUID] = muted;
+    this.setState({mutedCalls});
+    // this.setState({...this.state.mutedCalls, [callUUID]: muted});
   };
 
   displayIncomingCall = number => {
+    console.log('displayIncomingCall ....');
     const callUUID = getNewUuid();
     this.addCall(callUUID, number);
 
@@ -253,7 +260,10 @@ class App extends React.Component {
   };
 
   displayIncomingCallNow = () => {
+    console.log('displayIncomingCallNow ....');
     this.displayIncomingCall(getRandomNumber());
+
+    // this.sendReceiveSignal();
   };
 
   displayIncomingCallDelayed = () => {
@@ -263,11 +273,13 @@ class App extends React.Component {
   };
 
   answerCall = ({callUUID}) => {
-    console.log('Call answered ....');
+    console.log('Call answered ....', callUUID);
+    console.log('answercall .... .calls', this.state.calls);
     const number = this.state.calls[callUUID];
     this.log(`[answerCall] ${format(callUUID)}, number: ${number}`);
 
     RNCallKeep.startCall(callUUID, number, number);
+    this.sendReceiveSignal();
 
     BackgroundTimer.setTimeout(() => {
       this.log(`[setCurrentCallActive] ${format(callUUID)}, number: ${number}`);
@@ -285,12 +297,11 @@ class App extends React.Component {
   };
 
   didReceiveStartCallAction = ({handle}) => {
-    console.log('calling ......');
     if (!handle) {
       // @TODO: sometime we receive `didReceiveStartCallAction` with handle` undefined`
       return;
     }
-    console.log('calling ......');
+    console.log('calling ...... didReceiveStartCallAction', handle);
     const callUUID = getNewUuid();
     this.addCall(callUUID, handle);
 
@@ -327,7 +338,7 @@ class App extends React.Component {
   };
 
   endCall = ({callUUID}) => {
-    console.log('call ended......');
+    console.log('call ended......', callUUID);
     const handle = this.state.calls[callUUID];
     this.log(`[endCall] ${format(callUUID)}, number: ${handle}`);
 
@@ -335,6 +346,7 @@ class App extends React.Component {
   };
 
   hangup = callUUID => {
+    console.log('call hangup ....');
     RNCallKeep.endCall(callUUID);
     this.removeCall(callUUID);
   };
@@ -386,45 +398,63 @@ class App extends React.Component {
   };
 
   sendCallSignal = () => {
-    console.log('send signal ...', this.connectedClientId[0]);
-    const {isConnected} = this.state;
-    if (isConnected) {
-      if (this.connectedClientId.length > 0) {
-        this.otSessionRef.current.signal(
-          {
-            data: 'Chezhian',
-            to: this.connectedClientId[0], // optional - connectionId of connected client you want to send the signal to
-            type: 'Calling', // optional - callout
-          },
-          error => {
-            console.log('signal sent', error);
-          },
-        );
-        console.log('send signal and show incoming call UI ...');
-        RNCallKeep.startCall(getRandomNumber(), '9585058087', 'Chezhian');
+    try {
+      const {isConnected} = this.state;
+      if (isConnected) {
+        console.log('send signal ....', this.connectedClientId);
+        if (this.connectedClientId.length > 0) {
+          alert(`send signal to ${this.connectedClientId[0]}`)
+          this.otSessionRef.current.signal(
+            {
+              data: 'Chezhian',
+              to: this.connectedClientId[0], // optional - connectionId of connected client you want to send the signal to
+              type: 'Calling', // optional - callout
+            },
+            error => {
+              console.log('signal sent', error);
+              throw {};
+            },
+          );
+          console.log('send signal and show outgoing call UI ...');
+          // RNCallKeep.startCall(getRandomNumber(), '9585058087', 'Chezhian');
+        } else {
+          alert('Unable to send signal. No user connected');
+        }
       } else {
-        alert('Unable to send signal. No user connected');
+        alert('Unable to send signal. Session not connected');
       }
-    } else {
-      alert('Unable to send signal. Session not connected');
+    } catch (e) {
+      alert('Can not estabilsh call - send signal');
     }
   };
 
-  sendReceiveSignal = () => {
-    console.log('send signal ...');
-    const {isConnected} = this.state;
-    if (isConnected) {
-      this.otSessionRef.current.signal(
-        {
-          data: 'Chezhian',
-          to: this.connectedClientId[0], // optional - connectionId of connected client you want to send the signal to
-          type: 'Receiving', // optional
-        },
-        error => {
-          console.log('signal sent', error);
-        },
-      );
-      console.log('send signal and show incoming call UI ...');
+  sendReceiveSignal = connectionId => {
+    try {
+      console.log('send signal ...', this.connectedClientId[0]);
+      const {isConnected} = this.state;
+      if (isConnected) {
+        if (this.connectedClientId.length > 0) {
+          this.otSessionRef.current.signal(
+            {
+              data: 'Chezhian',
+              to: '', //this.connectedClientId[0], // optional - connectionId of connected client you want to send the signal to
+              type: 'CallAccepted', // optional - callout
+            },
+            error => {
+              console.log('signal sent', error);
+              throw {};
+            },
+          );
+          console.log('send signal and startCall ...');
+          // RNCallKeep.startCall(getRandomNumber(), '9585058087', 'Chezhian');
+        } else {
+          alert('Unable to send receive call signal. No user connected');
+        }
+      } else {
+        alert('Unable to send receive call signal. Session not connected');
+      }
+    } catch (e) {
+      alert('Can not estabilsh call - send signal');
     }
   };
 
