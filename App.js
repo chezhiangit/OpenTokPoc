@@ -71,7 +71,7 @@ class App extends React.Component {
       heldCalls: {},
       mutedCalls: {},
     };
-    this.initialize();
+    // this.initialize();
     // RNCallKeep.setup({
     //   ios: {
     //     appName: 'CallKeepDemo',
@@ -113,9 +113,8 @@ class App extends React.Component {
         this.handleSignal(event);
       },
       connectionCreated: event => {
-
         console.log('another client connected connection crated', event);
-        // this.connectedClientId.push(event.connectionId);
+        this.connectedClientId.push(event.connectionId);
         console.log(
           'another client connected connection crated - this.connectedClientId',
           this.connectedClientId,
@@ -192,6 +191,8 @@ class App extends React.Component {
       this.didToggleHoldCallAction,
     );
     RNCallKeep.addEventListener('endCall', this.endCall);
+
+    // RNCallKeep.addEventListener('connectionCreated', this.endCall);
   }
   initialize = async () => {
     await RNCallKeep.setup(
@@ -404,7 +405,7 @@ class App extends React.Component {
       if (isConnected) {
         console.log('send signal ....', this.connectedClientId);
         if (this.connectedClientId.length > 0) {
-          alert(`send signal to ${this.connectedClientId[0]}`)
+          alert(`send signal to ${this.connectedClientId[0]}`);
           this.otSessionRef.current.signal(
             {
               data: 'Chezhian',
@@ -473,8 +474,12 @@ class App extends React.Component {
         const apiKey = res.apiKey;
         const sessionId = res.sessionId;
         const token = res.token;
-        this.setState({apiKey, sessionId, token, isSessionConnected: true});
+        this.setState(
+          {apiKey, sessionId, token, isSessionConnected: true},
+          ()=>this.initialize(),
+        );
         alert('Connected successfully.');
+        // this.initialize();
       })
       .catch(() => {
         alert('Connection failsed. Pls try again.');
@@ -510,7 +515,7 @@ class App extends React.Component {
             videoSource={null}
             publishAudio={true}
             publishVideo={false}
-            videTrack={false}
+            videoxxTrack={false}
             audioTrack={true}>
             {this.state.callUser && (
               <OTPublisher
